@@ -1,5 +1,5 @@
 import datetime
-from app import Base
+from database import Base
 from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship, sessionmaker, relationships, backref
 import uuid
