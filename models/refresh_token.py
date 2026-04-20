@@ -15,5 +15,5 @@ class RefreshToken(Base):
     token = Column(String(512), unique=True, index=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     is_revoked = Column(Boolean, default=False, nullable=False)
-    device_info = Column(String(256), nullable=True)
+    device_info = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
