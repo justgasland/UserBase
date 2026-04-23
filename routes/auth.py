@@ -1,13 +1,21 @@
 from flask import Blueprint, request, jsonify
-from models import User
+from models import User, RefreshToken
+from config import Config
 from utils.passwords import hash_password, verify_password
 from utils.validators import validate_email, validate_password, validate_username
-from utils.serializers import user_to_dict
+from utils.serializers import user_to_dict, token_to_dict
 from database import SessionLocal
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
-
+from utils.tokens import generate_access_token, generate_refresh_token, decode_token
 authBlueprint = Blueprint('auth', __name__)
+
+
+def meta():
+    return {
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
+        "request_id": str(uuid.uuid4())
+    }
 
 
 @authBlueprint.route('/auth/register', methods=['POST'])
@@ -48,10 +56,7 @@ def create_user():
                 "code": "validation_error",
                 "details": errors
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat() + 'Z',
-                "request_id": str(uuid.uuid4())
-            },
+            "meta":meta(),
         }), 422
 
     session = SessionLocal()
@@ -193,17 +198,59 @@ def login():
                         "request_id": str(uuid.uuid4())
                     },
                 }), 403
+            
+            if user.deleted_at is not None:
+                return jsonify({
+                    "success": False,
+                    "message": "Account has been deleted.",
+                    "errors": {
+                        "code": "account_deleted",
+                        "details": [{"field": "email", "message": f"Account was deleted at {deleted_at.isoformat()}."}]
+                    },
+                    "meta": {
+                        "timestamp": datetime.utcnow().isoformat() + 'Z',
+                        "request_id": str(uuid.uuid4())
+                    },
+                }), 410
+
+            access_token = generate_access_token(user.id)
+            refresh_token = generate_refresh_token(user.id)
+
+            new_refresh_token_row = RefreshToken(
+                user_id=user.id,
+                token=refresh_token,
+                expires_at=datetime.utcnow() + timedelta(seconds=Config.JWT_REFRESH_TOKEN_EXPIRES),
+                device_info=request.headers.get('User-Agent', 'Unknown')
+            )
 
             user.last_login_at = datetime.utcnow()
+
+            session.add(new_refresh_token_row)
             session.commit()
+            session.refresh(new_refresh_token_row)
+
+            return jsonify({
+            "success": True,
+            "message": "Login successful.",
+            "data":{
+                "access_token": access_token,
+                "refresh_token": refresh_token, 
+                "user": user_to_dict(user)},
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 200
+
+
         except Exception:
             session.rollback()
             return jsonify({
                     "success": False,
-                    "message": "An error occurred while creating the user.",
+                    "message": "An error occurred while logging in.",
                     "errors": {
                         "code": "database_error",
-                        "details": [{"field": None, "message": "An error occurred while updating the user."}]
+                        "details": [{"field": None, "message": "An error occurred while logging in."}]
                     },
                     "meta": {
                         "timestamp": datetime.utcnow().isoformat() + 'Z',
@@ -213,13 +260,102 @@ def login():
         finally:
             session.close()
 
+        
+
+@authBlueprint.route('/auth/refresh', methods=['POST'])
+def refresh_access_token():
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "Invalid JSON payload.",
+            "errors": {
+                "code": "invalid_json",
+                "details": [{"field": None, "message": "Invalid JSON payload."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 400
+
+    refresh_token = data.get('refresh_token')
+    if not refresh_token:
+        return jsonify({
+            "success": False,
+            "message": "Refresh token is required.",
+            "errors": {
+                "code": "missing_refresh_token",
+                "details": [{"field": "refresh_token", "message": "Refresh token is required."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 400
+
+    session = SessionLocal()
+    try:
+        stored_token = session.query(RefreshToken).filter_by(token=refresh_token).first()
+        if not stored_token or stored_token.is_revoked or stored_token.expires_at < datetime.utcnow():
+            return jsonify({
+                "success": False,
+                "message": "Invalid or expired refresh token.",
+                "errors": {
+                    "code": "invalid_refresh_token",
+                    "details": [{"field": "refresh_token", "message": "Invalid or expired refresh token."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 401
+
+        user = session.query(User).filter_by(id=stored_token.user_id).first()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "User not found.",
+                "errors": {
+                    "code": "user_not_found",
+                    "details": [{"field": None, "message": "Invalid or expired refresh token."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 404
+
+        new_access_token = generate_access_token(user.id)
+        refresh_token.access_token = new_access_token
+        session.commit()
+        session.refresh(refresh_token)
+
         return jsonify({
             "success": True,
-            "message": "Login successful.",
-            "data": user_to_dict(user),
+            "message": "Access token refreshed successfully.",
+            "data": {
+                "access_token": new_access_token,
+                "user": user_to_dict(user)
+            },
             "meta": {
                 "timestamp": datetime.utcnow().isoformat() + 'Z',
                 "request_id": str(uuid.uuid4())
             },
         }), 200
-
+    except Exception:
+        session.rollback()
+        return jsonify({
+                "success": False,
+                "message": "An error occurred while refreshing the access token.",
+                "errors": {
+                    "code": "database_error",
+                    "details": [{"field": None, "message": "An error occurred while refreshing the access token."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 500
+    finally:
+        session.close()

@@ -1,3 +1,6 @@
+import token
+
+
 def user_to_dict(user):
     return {
         "id": user.id,
@@ -13,3 +16,13 @@ def user_to_dict(user):
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
+
+def token_to_dict(refresh_token):
+    return {
+        "user_id": refresh_token.user_id,
+        "token": refresh_token.token,
+        "expires_at": refresh_token.expires_at.isoformat() if refresh_token.expires_at else None,   
+        "device_info": refresh_token.device_info,
+        "is_revoked": refresh_token.is_revoked,
+    }
+
