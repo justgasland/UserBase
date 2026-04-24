@@ -205,7 +205,7 @@ def login():
                     "message": "Account has been deleted.",
                     "errors": {
                         "code": "account_deleted",
-                        "details": [{"field": "email", "message": f"Account was deleted at {deleted_at.isoformat()}."}]
+                        "details": [{"field": "email", "message": f"Account was deleted at {user.deleted_at.isoformat()}."}]
                     },
                     "meta": {
                         "timestamp": datetime.utcnow().isoformat() + 'Z',
@@ -293,10 +293,38 @@ def refresh_access_token():
                 "request_id": str(uuid.uuid4())
             },
         }), 400
+    decode= decode_token(refresh_token) if refresh_token else None
+    if not decode:
+        return jsonify({
+            "success": False,
+            "message": "Invalid refresh token.",
+            "errors": {
+                "code": "invalid_refresh_token",
+                "details": [{"field": "refresh_token", "message": "Invalid refresh token."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 401
+    if decode.get('type') != 'refresh':
+        return jsonify({
+            "success": False,
+            "message": "Invalid token type.",
+            "errors": {
+                "code": "invalid_token_type",
+                "details": [{"field": "refresh_token", "message": "Provided token is not a refresh token."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }),401
 
     session = SessionLocal()
     try:
         stored_token = session.query(RefreshToken).filter_by(token=refresh_token).first()
+        
         if not stored_token or stored_token.is_revoked or stored_token.expires_at < datetime.utcnow():
             return jsonify({
                 "success": False,
@@ -325,11 +353,21 @@ def refresh_access_token():
                     "request_id": str(uuid.uuid4())
                 },
             }), 404
+        if user.is_active == False or user.deleted_at is not None:
+            return jsonify({
+                "success": False,
+                "message": "User account is not active.",
+                "errors": {
+                    "code": "account_inactive",
+                    "details": [{"field": None, "message": "User account is not active."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 403
 
         new_access_token = generate_access_token(user.id)
-        refresh_token.access_token = new_access_token
-        session.commit()
-        session.refresh(refresh_token)
 
         return jsonify({
             "success": True,
@@ -356,6 +394,120 @@ def refresh_access_token():
                     "timestamp": datetime.utcnow().isoformat() + 'Z',
                     "request_id": str(uuid.uuid4())
                 },
+            }), 500
+    finally:
+        session.close()
+
+
+
+@authBlueprint.route('/auth/logout', methods=['POST'])
+def logout():
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "Invalid JSON payload.",
+            "errors": {
+                "code": "invalid_json",
+                "details": [{"field": None, "message": "Invalid JSON payload."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 400
+    token= data.get('refresh_token')
+    if not token:
+        return jsonify({
+            "success": False,
+            "message": "Refresh token is required.",
+            "errors": {
+                "code": "missing_refresh_token",
+                "details": [{"field": "refresh_token", "message": "Refresh token is required."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 400
+    decode= decode_token(token) if token else None
+    if not decode:
+        return jsonify({
+            "success": False,
+            "message": "Invalid refresh token.",
+            "errors": {
+                "code": "invalid_refresh_token",
+                "details": [{"field": "refresh_token", "message": "Invalid refresh token."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 401
+    if decode.get('type') != 'refresh':
+        return jsonify({
+            "success": False,
+            "message": "Invalid token type.",
+            "errors": {
+                "code": "invalid_token_type",
+                "details": [{"field": "refresh_token", "message": "Provided token is not a refresh token."}]
+            },
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }),401
+    session = SessionLocal()
+    try:
+        stored_token = session.query(RefreshToken).filter_by(token=token).first()
+        if not stored_token or stored_token.is_revoked:
+            return jsonify({
+                "success": False,
+                "message": "Invalid refresh token.",
+                "errors": {
+                    "code": "invalid_refresh_token",
+                    "details": [{"field": "refresh_token", "message": "Invalid refresh token."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 401
+        if stored_token.expires_at < datetime.utcnow():
+            return jsonify({
+                "success": False,
+                "message": "Refresh token has expired.",
+                "errors": {
+                    "code": "expired_refresh_token",
+                    "details": [{"field": "refresh_token", "message": "Refresh token has expired."}]
+                },
+                "meta": {
+                    "timestamp": datetime.utcnow().isoformat() + 'Z',
+                    "request_id": str(uuid.uuid4())
+                },
+            }), 401
+
+        stored_token.is_revoked = True
+        session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Logged out successfully.",
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "request_id": str(uuid.uuid4())
+            },
+        }), 200
+    except Exception:
+        session.rollback()
+        return jsonify({
+                "success": False,
+                "message": "An error occurred while logging out.",
+                "errors": {
+                    "code": "database_error",
+                    "details": [{"field": None, "message": "An error occurred while logging out."}]
+                },
+                "meta": meta()
             }), 500
     finally:
         session.close()

@@ -1,4 +1,6 @@
 import token
+from datetime import datetime
+import uuid
 
 
 def user_to_dict(user):
@@ -24,5 +26,11 @@ def token_to_dict(refresh_token):
         "expires_at": refresh_token.expires_at.isoformat() if refresh_token.expires_at else None,   
         "device_info": refresh_token.device_info,
         "is_revoked": refresh_token.is_revoked,
+    }
+
+def meta():
+    return {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "request_id": str(uuid.uuid4())
     }
 
