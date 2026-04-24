@@ -3,7 +3,7 @@ from flask import request, jsonify, g
 from datetime import datetime
 import uuid
 from utils.tokens import decode_token
-from database import SessionLocal, SessionLocal, session
+from database import SessionLocal
 from models import User
 from utils.serializers import meta
 

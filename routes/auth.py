@@ -7,6 +7,7 @@ from utils.serializers import user_to_dict, token_to_dict
 from database import SessionLocal
 from datetime import datetime, timedelta
 import uuid
+import logging
 from utils.tokens import generate_access_token, generate_refresh_token, decode_token
 authBlueprint = Blueprint('auth', __name__)
 
@@ -113,8 +114,9 @@ def create_user():
             },
         }), 201
 
-    except Exception:
+    except Exception as e:
         session.rollback()
+        logging.exception("Error creating user")
         return jsonify({
             "success": False,
             "message": "An error occurred while creating the user.",
@@ -243,8 +245,10 @@ def login():
         }), 200
 
 
-        except Exception:
+        except Exception as e:
+            print("LOGIN ERROR:", e)
             session.rollback()
+
             return jsonify({
                     "success": False,
                     "message": "An error occurred while logging in.",

@@ -29,6 +29,7 @@ from models.refresh_token import RefreshToken
 from models.reset_token import PasswordResetToken
 
 config.set_main_option("sqlalchemy.url", Config.DATABASE_URL)
+from database import Base
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
