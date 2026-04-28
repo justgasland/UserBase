@@ -2,14 +2,13 @@ from flask import Blueprint, request, session
 from flask import jsonify, g
 
 from middleware.auth import require_auth
-from models import User
+from models import User, RefreshToken, reset_token
 from utils.serializers import meta, user_to_dict
 from database import SessionLocal
 from datetime import datetime
 import uuid
 from utils.validators import validate_username, validate_email, validate_password, validate_role, validate_avatar_url, validate_bio ,validate_name
-
-
+from utils.passwords import verify_password, hash_password
 
 usersBlueprint = Blueprint('users', __name__)
 
@@ -199,8 +198,11 @@ def delete_me():
             }), 404
         
         user.deleted_at = datetime.utcnow()
-        # user.acces
+        session.query(RefreshToken).filter_by(user_id=user.id,is_revoked=False).update({"is_revoked": True})
+        
         session.commit()
+        
+        
         return jsonify({
             "success": True,
             "message": "Account deleted successfully.",
@@ -225,3 +227,203 @@ def delete_me():
         }), 500
     finally:
         session.close()
+
+
+
+@usersBlueprint.route("/users/me/change-password", methods=["POST"])
+@require_auth
+def change_password():
+    data= request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "Invalid JSON payload.",
+            "errors": {
+                "code": "invalid_json",
+                "details": [{"field": None, "message": "Invalid JSON payload."}]
+            },
+            "meta": meta()
+        }), 400
+    
+    current_password=data.get("current_password")
+    new_password=data.get("new_password")
+    
+
+    if current_password is None:
+        return jsonify({
+            "success": False,
+            "message": "Current password is required.",
+            "errors": {
+                "code": "Validation Error",
+                "details": [{"field": "current_password", "message": "Current password is required."}]
+            },
+            "meta": meta()
+        }), 422
+    if new_password is None:
+        return jsonify({
+            "success": False,
+            "message": "New Password is Required.",
+            "errors": {
+                "code": "Validation Error",
+                "details": [{"field": "new_password", "message": "New password is required."}]
+            },
+            "meta": meta()
+        }), 422
+    else:
+        password_error = validate_password(new_password)
+        if password_error:
+            return jsonify({
+                "success": False,
+                "message": "Validation Error.",
+                "errors": {
+                    "code": "validation_error",
+                    "details": password_error
+                },
+                "meta": meta()
+            }), 422
+        
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter_by(id=g.user.id).first()
+        if user is None:
+            return jsonify({
+                "success": False,
+                "message": "User not found.",
+                "errors": {
+                    "code": "user_not_found",
+                    "details": [
+                        {
+                            "field": None,
+                            "message": "User not found."
+                        }
+                    ]
+                },
+                "meta": meta()
+            }), 404
+        if not user.is_active:
+            return jsonify({
+                "success": False,
+                "message": "Account is inactive.",
+                "errors": {
+                    "code": "account_inactive",
+                    "details": [{"field": "email", "message": "Account is inactive."}]
+                },
+                "meta": meta()
+            }), 403
+
+        if user.deleted_at is not None:
+            return jsonify({
+                "success": False,
+                "message": "Account has been deleted.",
+                "errors": {
+                    "code": "account_deleted",
+                    "details": [{"field": "email", "message": "Account has been deleted."}]
+                },
+                "meta": meta()
+            }), 410
+        
+        verify_error=verify_password(current_password, user.password_hash)
+        if not verify_error:
+            return jsonify({
+                "success": False,
+                "message": "Current password is incorrect.",
+                "errors": {
+                    "code": "incorrect_password",
+                    "details": [
+                        {
+                            "field": "current_password",
+                            "message": "Current password is incorrect."
+                        }
+                    ]
+                },
+                "meta": meta()
+            }), 401
+        
+        hashed_password = hash_password(new_password)
+        user.password_hash = hashed_password
+
+        session.query(RefreshToken).filter_by(user_id=user.id,is_revoked=False).update({"is_revoked": True})
+
+
+        session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Password changed successfully.",
+            "data": 'null',
+            "meta": meta()
+        }), 200
+    
+    except Exception as e:
+        session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while changing the password.",
+            "errors": {
+                "code": "account_deletion_error",
+                "details": [
+                    {
+                        "field": None,
+                        "message": "An unexpected error occurred while changing the password. Please try again later."
+                    }
+                ]
+            },
+            "meta": meta()
+        }), 500
+    finally:
+        session.close()
+
+        
+
+
+@usersBlueprint.route("/users/me/sessions", methods= "GET")
+@require_auth
+def user_session():
+    session=SessionLocal()
+    try:
+        user=session.query(RefreshToken).filter_by(user_id = g.user.id, is_revoked = False).all()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "No active sessions found.",
+                "data": None,
+                "meta": meta()
+            }), 404
+        
+        return jsonify({
+            "success":True,
+            "message": "Active sessions retrieved successfully",
+            "data": {
+                "id" : user.id,
+                'device_info': user.device_info,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "expires_at": user.expires_at.isoformat()  if user.expires_at else None 
+            },
+            "meta": meta()
+
+        }), 200
+    except Exception:
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while retrieving sessions.",
+            "errors": {
+                "code": "sessions_fetch_error",
+                "details": [{"field": None, "message": "An unexpected error occurred."}]
+                },
+                "meta": meta()
+            }), 500
+
+    finally:
+        session.close()
+
+
+
+    
+
+        
+
+    
+
+
+
+
