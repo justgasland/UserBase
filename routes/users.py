@@ -417,6 +417,105 @@ def user_session():
         session.close()
 
 
+@usersBlueprint.route('/users/me/sessions/<string:id>', methods=["DELETE"])
+@require_auth
+def delete_session(id):
+    session = SessionLocal()
+    try:
+        refresh_token = session.query(RefreshToken).filter_by(id=id, user_id=g.user.id).first()
+        if not refresh_token:
+            return jsonify({
+                "success": False,
+                "message": "Session not found.",
+                "errors": {
+                    "code": "session_not_found",
+                    "details": [{"field": None, "message": "Session not found."}]
+                },
+                "meta": meta()
+            }), 404
+        if refresh_token.is_revoked:
+            return jsonify({
+                "success": False,
+                "message": "Session is already revoked.",
+                "errors": {
+                    "code": "session_already_revoked",
+                    "details": [{"field": None, "message": "Session is already revoked."}]
+                },
+                "meta": meta()
+            }), 400
+        
+        refresh_token.is_revoked = True
+        session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Session revoked successfully.",
+            "data": None,
+            "meta": meta()
+        }), 200
+
+    except Exception:
+        session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while revoking the session.",
+            "errors": {
+                "code": "session_revoke_error",
+                "details": [{"field": None, "message": "An unexpected error occurred."}]
+            },
+            "meta": meta()
+        }), 500
+    finally:
+        session.close()
+
+
+@usersBlueprint.route('/users/<string:username>', methods=["GET"])
+def get_username(username):
+    session=SessionLocal()
+    try:
+        user=session.query(User).filter_by(username=username).first()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Username not found.",
+                "errors": {
+                    "code": "user_not_found",
+                    "details": [{"field": None, "message": "Username not found."}]
+                },
+                "meta": meta()
+            }), 404
+        
+        if user.deleted_at is not None:
+            return jsonify({
+                "success": False,
+                "message": "Account has been deleted.",
+                "errors": {
+                    "code": "account_deleted",
+                    "details": [{"field": "email", "message": "Account has been deleted."}]
+                },
+                "meta": meta()
+            }), 410
+        data={
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "bio": user.bio,
+            "avatar_url": user.avatar_url
+        }
+
+        return jsonify({
+            "success": True,
+            "message": "User retrieved successfully",
+            "data": data,
+            "meta": meta()
+        }), 200
+    finally:
+        session.close()
+
+    
+
+
+
 
     
 

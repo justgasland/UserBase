@@ -7,6 +7,12 @@ from database import SessionLocal
 from models import User
 from utils.serializers import meta
 
+ROLE_HIERARCHY = {
+    "user": 1,
+    "moderator": 2,
+    "admin": 3
+}
+
 
 def require_auth(func):
     @wraps(func)
@@ -130,3 +136,41 @@ def require_auth(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def require_role(required_role):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not hasattr(g, "user"):
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required.",
+                    "errors": {
+                        "code": "TOKEN_INVALID",
+                        "details": [
+                            {"field": "Authorization", "message": "Missing or invalid token."}
+                        ]
+                    },
+                    "meta": meta()
+                }), 401
+
+            user_role = g.user.role
+
+            if ROLE_HIERARCHY.get(user_role, 0) < ROLE_HIERARCHY.get(required_role, 0):
+                return jsonify({
+                    "success": False,
+                    "message": "Forbidden.",
+                    "errors": {
+                        "code": "FORBIDDEN",
+                        "details": [
+                            {"field": "Authorization", "message": "Insufficient permissions."}
+                        ]
+                    },
+                    "meta": meta()
+                }), 403
+
+            return func(*args, **kwargs)
+
+        return wrapper
+    return decorator

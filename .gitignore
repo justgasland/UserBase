@@ -6,3 +6,6 @@ __pycache__/
 *.pyo
 .db
 instance
+userbase.db
+.sqlite3
+db.sqlite3
