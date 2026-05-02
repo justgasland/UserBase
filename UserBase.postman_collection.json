@@ -1,0 +1,241 @@
+{
+  "info": {
+    "name": "UserBase API",
+    "description": "Postman collection for UserBase Flask API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Auth / Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\",\n  \"username\": \"testuser\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "Auth / Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Auth / Refresh Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/refresh",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "auth", "refresh"]
+        }
+      }
+    },
+    {
+      "name": "Auth / Logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/logout",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "auth", "logout"]
+        }
+      }
+    },
+    {
+      "name": "Users / Get Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me"]
+        }
+      }
+    },
+    {
+      "name": "Users / Update Me",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"bio\": \"Updated profile bio.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me"]
+        }
+      }
+    },
+    {
+      "name": "Users / Delete Me",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me"]
+        }
+      }
+    },
+    {
+      "name": "Users / Change Password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current_password\": \"Password123!\",\n  \"new_password\": \"NewPassword123!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me/change-password",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me", "change-password"]
+        }
+      }
+    },
+    {
+      "name": "Users / List Sessions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me/sessions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me", "sessions"]
+        }
+      }
+    },
+    {
+      "name": "Users / Revoke Session",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/me/sessions/{{session_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "me", "sessions", "{{session_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Users / Get Public User",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/{{username}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "{{username}}"]
+        }
+      }
+    },
+    {
+      "name": "Admin / Get All Users",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/users",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "admin", "users"]
+        }
+      }
+    },
+    {
+      "name": "Admin / Get User By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "admin", "users", "{{user_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Admin / Delete User",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "admin", "users", "{{user_id}}"]
+        }
+      }
+    }
+  ]
+}

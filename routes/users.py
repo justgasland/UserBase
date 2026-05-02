@@ -376,13 +376,16 @@ def change_password():
         
 
 
-@usersBlueprint.route("/users/me/sessions", methods= "GET")
+@usersBlueprint.route("/users/me/sessions", methods=["GET"])
 @require_auth
 def user_session():
     session=SessionLocal()
     try:
-        user=session.query(RefreshToken).filter_by(user_id = g.user.id, is_revoked = False).all()
-        if not user:
+        refresh_tokens = session.query(RefreshToken).filter_by(
+            user_id=g.user.id,
+            is_revoked=False
+        ).all()
+        if not refresh_tokens:
             return jsonify({
                 "success": False,
                 "message": "No active sessions found.",
@@ -393,12 +396,15 @@ def user_session():
         return jsonify({
             "success":True,
             "message": "Active sessions retrieved successfully",
-            "data": {
-                "id" : user.id,
-                'device_info': user.device_info,
-                "created_at": user.created_at.isoformat() if user.created_at else None,
-                "expires_at": user.expires_at.isoformat()  if user.expires_at else None 
-            },
+            "data": [
+                {
+                    "id": refresh_token.id,
+                    "device_info": refresh_token.device_info,
+                    "created_at": refresh_token.created_at.isoformat() if refresh_token.created_at else None,
+                    "expires_at": refresh_token.expires_at.isoformat() if refresh_token.expires_at else None
+                }
+                for refresh_token in refresh_tokens
+            ],
             "meta": meta()
 
         }), 200

@@ -9,3 +9,12 @@ instance
 userbase.db
 .sqlite3
 db.sqlite3
+userbase.sqlite3
+*.log
+user
+UserBase.postman_collection.json
+tests/__pycache__/
+tests/test_user.py
+test.py
+.gitignore
+.test.py
