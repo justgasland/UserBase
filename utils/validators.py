@@ -48,3 +48,43 @@ def validate_username(username: str) -> bool:
 
     return error
 
+def validate_role(role: str) -> bool:
+    error=[]
+    valid_roles = ['user', 'admin']
+    if not role:
+        error.append({"field": "role", "message": "Role is required."})
+    elif role not in valid_roles:
+        error.append({"field": "role", "message": f"Role must be one of the following: {', '.join(valid_roles)}."})
+
+    return error
+
+def validate_avatar_url(avatar_url: str) -> bool:
+    error=[]
+    if not isinstance(avatar_url, str):
+        error.append({"field": "avatar_url", "message": "Avatar URL must be a string."})
+    elif avatar_url and len(avatar_url) > 500:
+        error.append({"field": "avatar_url", "message": "Avatar URL must be less than 500 characters."})
+    elif avatar_url and not re.match(r'^(https?://)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/[\w\-._~:/?#[\]@!$&\'()*+,;=]*)?$', avatar_url):
+        error.append({"field": "avatar_url", "message": "Invalid URL format for avatar."})
+
+    return error
+
+
+def validate_bio(bio: str) -> bool:
+    error=[]
+    if not isinstance(bio, str):
+        error.append({"field": "bio", "message": "Bio must be a string."})
+    elif bio and len(bio) > 1000:
+        error.append({"field": "bio", "message": "Bio must be less than 1000 characters."})
+
+    return error
+
+def validate_name(name: str, field_name: str) -> bool:
+    error=[]
+    if not isinstance(name, str):
+        error.append({"field": field_name, "message": f"{field_name.replace('_', ' ').title()} must be a string."})
+    elif name and len(name) > 100:
+        error.append({"field": field_name, "message": f"{field_name.replace('_', ' ').title()} must be less than 100 characters."})
+
+    return error
+
