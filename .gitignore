@@ -13,6 +13,7 @@ userbase.sqlite3
 *.log
 user
 UserBase.postman_collection.json
+keyvent.db
 tests/__pycache__/
 tests/test_user.py
 test.py
